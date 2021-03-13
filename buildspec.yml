@@ -1,0 +1,32 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      # Make sure you've configured this CodeBuild project to clone the repository with full depth.
+      # Be aware that the default shell of latest Ubuntu is not bash but dash.
+      - |
+        set -eu
+        pr_number=$(echo $CODEBUILD_SOURCE_VERSION | perl -pe 's/^pr\/(\d+)/\1/')
+        git fetch origin "pull/${pr_number}/merge:pr/${pr_number}/merge"
+        git checkout "pr/${pr_number}/merge"
+
+        outfile="/tmp/tf-diff-$(date +%s)"
+
+        git diff main --name-only \
+        | perl -ne 'BEGIN{$tf_stack={}} $tf_stack->{$1}="true" if $_ =~ /^terraform\/([^\/]+)\//; END{for my $key (keys %{$tf_stack}){print $key."\n"}}' \
+        > "${outfile}"
+
+        if [ "$(cat ${outfile})" == '' ]; then
+          printf 'No change is detected in terraform code.\n'
+          exit 0
+        fi
+
+        git clone https://github.com/tfutils/tfenv.git ~/.tfenv
+        export PATH="$HOME/.tfenv/bin:$PATH"
+
+        xargs -I{} cat ./terraform/{}/.terraform-version < "${outfile}" \
+        | perl -ne 'BEGIN{$hash={}} $hash->{$1}="true" if /^([0-9]+\.[0-9]+\.[0-9]+)$/; END{for my $key (keys %{$hash}){print $key."\n"}}' \
+        | xargs -I{} tfenv install {}
+
+        xargs -I{} bash -c 'PJ={} ./task fmt' < "${outfile}"

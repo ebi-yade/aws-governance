@@ -1,0 +1,2 @@
+export PJ=management
+export AWS_PROFILE=default

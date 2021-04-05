@@ -1,8 +1,10 @@
 .DS_Store
-.env*
+.env
+.envrc
 # Terraform Files
 .terraform
 *terraform.tfvars*
 *.tfstate*
 archive/*
 !archive/.keep
+backup.tf

@@ -1,0 +1,88 @@
+#!/bin/bash
+set -eu
+
+validate () {
+  # Check if tfenv is available.
+  tfpath_output="/tmp/tfenv-$(date +%s )"
+
+  if ! which terraform > "${tfpath_output}"; then
+    printf 'Error: terraform is not available.\n\nInstall terraform with tfenv:\nhttps://github.com/tfutils/tfenv\n'
+    exit 1
+  fi
+
+  if ! perl -ne 'exit 1 if !/tfenv\/bin\/terraform$/' < "${tfpath_output}"; then
+    printf 'Error: tfenv is not available.\n\nInstall terraform with tfenv:\nhttps://github.com/tfutils/tfenv\n'
+    exit 1
+  fi
+
+  if ! find ./terraform/"${PJ}"/.terraform-version >/dev/null 2>&1; then
+    printf 'Error: terraform version is not specified.\n\ncreate .terraform-version under ./terraform/%s\n' "${PJ}"
+    exit 1
+  fi
+}
+
+checkout () {
+  cd "./terraform/${PJ}"
+  if find ./errored.tfstate >/dev/null 2>&1; then
+      printf 'Error: errored.tfstate is found.\n\nRun the following command:\n  bash task recover\n'
+      exit 1
+  fi
+}
+
+
+validate
+
+
+if [ "$1" == 'validate' ]; then
+  exit 0
+fi
+
+
+if [ "$1" == 'init' ]; then
+  checkout
+  cp backup.tf.bak backup.tf
+  sed -i.bak -e "s/<project-name>/${PJ}/g" backup.tf
+  sed -i '' -e "s/<profile>/${AWS_PROFILE}/g" backup.tf
+  terraform init
+  exit 0
+fi
+
+
+if [ "$1" == 'fmt' ]; then
+  checkout
+  fmt=$(terraform fmt)
+  if [ "${fmt}" == '' ]; then
+    exit 0
+  else
+    echo "${fmt}"
+    exit 1
+  fi
+fi
+
+
+
+if [ "$1" == 'deploy' ]; then
+  checkout
+  terraform apply
+  exit 0
+fi
+
+
+if [ "$1" == 'recover' ]; then
+  cd "terraform/${PJ}"
+  terraform terraform state push errored.tfstate
+  rm errored.tfstate
+  exit 0
+fi
+
+
+if [ "$1" == 'force-unlock' ]; then
+  checkout
+  lock_id=$(terraform apply 2>&1 > /dev/null | perl -ne 'print $1 if /ID:[ \t]+([0-9,a-f,\-]+)[ \t]*$/')
+  terraform force-unlock "${lock_id}"
+  exit 0
+fi
+
+
+printf "No such command: $1\nFor more detail, check the code in ./task\n"
+exit 1

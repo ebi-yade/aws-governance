@@ -51,9 +51,9 @@ resource "aws_ssoadmin_managed_policy_attachment" "managed" {
 # for admin group
 
 locals {
-  admin_allowed_accounts = {
-    for account in data.aws_organizations_organization.this.non_master_accounts : account.name => account if account.name != "audit"
-  }
+  admin_allowed_accounts = toset([
+    for account in data.aws_organizations_organization.this.non_master_accounts : account.id if account.name != "audit"
+  ])
 }
 
 resource "aws_ssoadmin_account_assignment" "admin_access_to_admin_group" {
@@ -65,7 +65,7 @@ resource "aws_ssoadmin_account_assignment" "admin_access_to_admin_group" {
   principal_id   = data.aws_identitystore_group.admin.id
   principal_type = "GROUP"
 
-  target_id   = each.value.id
+  target_id   = each.value
   target_type = "AWS_ACCOUNT"
 }
 
@@ -78,6 +78,6 @@ resource "aws_ssoadmin_account_assignment" "readonly_access_to_admin_group" {
   principal_id   = data.aws_identitystore_group.admin.id
   principal_type = "GROUP"
 
-  target_id   = each.value.id
+  target_id   = each.value
   target_type = "AWS_ACCOUNT"
 }

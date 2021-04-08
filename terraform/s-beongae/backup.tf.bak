@@ -1,0 +1,16 @@
+#####################################
+# Backend Settings
+#####################################
+terraform {
+  #  Unfortunately, you cannot use any variables in this statement! :(
+  #  So you need to hard code your backup info here, or remain tfstate local.
+  required_version = ">= 0.12.0"
+  backend "s3" {
+    bucket         = "ebi-governance-tfstate"
+    acl            = "bucket-owner-full-control"
+    region         = "ap-northeast-1"
+    key            = "<project-name>"
+    dynamodb_table = "tfstate-lock"
+    profile        = "<profile>"
+  }
+}

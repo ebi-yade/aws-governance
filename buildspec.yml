@@ -1,5 +1,8 @@
 version: 0.2
 
+env:
+  git-credential-helper: yes
+
 phases:
   build:
     commands:
@@ -8,8 +11,8 @@ phases:
       - |
         set -eu
         pr_number=$(echo $CODEBUILD_SOURCE_VERSION | perl -pe 's/^pr\/(\d+)/\1/')
-        git fetch origin "pull/${pr_number}/merge:pr/${pr_number}/merge"
-        git checkout "pr/${pr_number}/merge"
+        git fetch
+        git checkout "pull/${pr_number}/merge"
 
         outfile="/tmp/tf-diff-$(date +%s)"
 
